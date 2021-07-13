@@ -22,11 +22,15 @@ collection = db['user']
 
 @app.route('/', methods=['GET'])
 def index():
-  data = collection.find_one(request.values['id'])
-  if data:
-    return jsonify(data)
+  id = request.args.get('id')
+  if id:
+    data = collection.find_one(id)
+    if data:
+      return jsonify(data)
+    else:
+      return jsonify({})
   else:
-    return jsonify({})
+    return jsonify({ 'error': 'id is required' })
 
 class Api(Resource):
   def post(self):
