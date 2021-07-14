@@ -5,7 +5,7 @@ from datetime import datetime
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_restful import Api, Resource, reqparse
-from pymongo import MongoClient
+from pymongo import MongoClient, UpdateOne
 
 # load sentence encoder
 # url = 'universal-sentence-encoder-multilingual-large_3'
@@ -20,6 +20,7 @@ api = Api(app)
 client = MongoClient('mongodb+srv://api:gPdCEpVRVWuOnGqp@cluster0.xgkp9.mongodb.net/?ssl=true&ssl_cert_reqs=CERT_NONE&retryWrites=true&w=majority')
 db = client['recommended_system']
 user_db = db['user']
+tag_db = db['tag']
 event_db = db['event']
 
 @app.route('/', methods=['GET'])
@@ -96,6 +97,26 @@ class Event(Resource):
       },
       upsert=True
     )
+    if args['tags']:
+      bulk_requests = []
+      # embeded = embed(args['tags']).numpy().tolist().reverse()
+      for tag in args['tags']:
+        bulk_requests.append(
+          UpdateOne(
+            { 'name': tag },
+            {
+              '$set': {
+                'lastUsedDate': now
+              },
+              '$setOnInsert': {
+                # 'encoded_name': embeded.pop(),
+                'createDate': now
+              }
+            },
+            upsert=True
+          )
+        )
+      tag_db.bulk_write(bulk_requests)
 
 api.add_resource(User, '/api/user')
 api.add_resource(Event, '/api/event')
