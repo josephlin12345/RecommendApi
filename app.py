@@ -2,7 +2,7 @@ from datetime import datetime
 
 # import tensorflow_hub as hub
 # import tensorflow_text
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify
 from flask_cors import CORS
 from flask_restful import Api, Resource, reqparse
 from pymongo import MongoClient, UpdateOne
@@ -23,25 +23,27 @@ user_db = db['user']
 tag_db = db['tag']
 event_db = db['event']
 
-@app.route('/', methods=['GET'])
-def index():
-  parser = reqparse.RequestParser()
-  parser.add_argument('id', required=True, help='id is required', type=str)
-  id = parser.parse_args()['id']
-  data = user_db.find_one(id)
-  if data:
-    return jsonify(data)
-  else:
-    return jsonify({})
+def toDate(dateString):
+  return datetime.strptime(dateString, '%Y-%m-%dT%H:%M:00.000Z')
 
 class User(Resource):
-  def __init__(self):
-    self.parser = reqparse.RequestParser()
-    self.parser.add_argument('id', required=True, help='id is required', type=str, location='json')
-    self.parser.add_argument('pageTitle', required=True, help='pageTitle is required', type=str, location='json')
+  def get(self):
+    parser = reqparse.RequestParser()
+    parser.add_argument('id', required=True, help='id is required', type=str)
+    args = parser.parse_args()
+
+    data = user_db.find_one(args['id'])
+    if data:
+      return jsonify(data)
+    else:
+      return jsonify({})
 
   def post(self):
-    args = self.parser.parse_args()
+    parser = reqparse.RequestParser()
+    parser.add_argument('id', required=True, help='id is required', type=str, location='json')
+    parser.add_argument('pageTitle', required=True, help='pageTitle is required', type=str, location='json')
+    args = parser.parse_args()
+
     now = datetime.now()
     user_db.update_one(
       { '_id': args['id'] },
@@ -49,6 +51,7 @@ class User(Resource):
         '$push': {
           f'pageTitles.{now.strftime("%Y-%m-%d")}': {
             'pageTitle': args['pageTitle'],
+            # 'encodedPageTitle': embed([args['pageTitle']]).numpy().tolist()[0],
             'timestamp': now
           }
         }
@@ -57,24 +60,20 @@ class User(Resource):
     )
     return args
 
-def toDate(dateString):
-  return datetime.fromisoformat(dateString)# need convert
-
 class Event(Resource):
-  def __init__(self):
-    self.parser = reqparse.RequestParser()
-    self.parser.add_argument('id', required=True, help='id is required', type=str, location='json')
-    self.parser.add_argument('author', required=True, help='author is required', type=str, location='json')
-    self.parser.add_argument('title', required=True, help='title is required', type=str, location='json')
-    self.parser.add_argument('url', default=None, type=str, location='json')
-    self.parser.add_argument('description', default=None, type=str, location='json')
-    self.parser.add_argument('startDate', default=None, type=toDate, location='json')
-    self.parser.add_argument('endDate', default=None, type=toDate, location='json')
-    self.parser.add_argument('image', default=None, type=str, location='json')
-    self.parser.add_argument('tags', default=None, action='append', type=str, location='json')
-
   def post(self):
-    args = self.parser.parse_args()
+    parser = reqparse.RequestParser()
+    parser.add_argument('id', required=True, help='id is required', type=str, location='json')
+    parser.add_argument('author', required=True, help='author is required', type=str, location='json')
+    parser.add_argument('title', required=True, help='title is required', type=str, location='json')
+    parser.add_argument('url', default=None, type=str, location='json')
+    parser.add_argument('description', default=None, type=str, location='json')
+    parser.add_argument('startDate', default=None, type=toDate, location='json')
+    parser.add_argument('endDate', default=None, type=toDate, location='json')
+    parser.add_argument('image', default=None, type=str, location='json')
+    parser.add_argument('tags', default=None, action='append', type=str, location='json')
+    args = parser.parse_args()
+
     now = datetime.now()
     event_db.update_one(
       { '_id': f'{args["author"]}-{args["id"]}' },
@@ -82,7 +81,7 @@ class Event(Resource):
         '$set': {
           'author': args['author'],
           'title': args['title'],
-          # 'encoded_title': embed([args['title']]).numpy().tolist()[0],
+          # 'encodedTitle': embed([args['title']]).numpy().tolist()[0],
           'url': args['url'],
           'description': args['description'],
           'startDate': args['startDate'],
@@ -109,7 +108,7 @@ class Event(Resource):
                 'lastUsedDate': now
               },
               '$setOnInsert': {
-                # 'encoded_name': embeded.pop(),
+                # 'encodedName': embeded.pop(),
                 'createDate': now
               }
             },
