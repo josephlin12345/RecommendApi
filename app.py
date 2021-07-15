@@ -22,6 +22,7 @@ db = client['recommended_system']
 user_db = db['user']
 tag_db = db['tag']
 event_db = db['event']
+establisher_db = db['establisher']
 
 def toDate(dateString):
   return datetime.strptime(dateString, '%Y-%m-%dT%H:%M:00.000Z')
@@ -63,8 +64,7 @@ class User(Resource):
 class Event(Resource):
   def post(self):
     parser = reqparse.RequestParser()
-    parser.add_argument('id', required=True, help='id is required', type=str, location='json')
-    parser.add_argument('author', required=True, help='author is required', type=str, location='json')
+    parser.add_argument('establisher', required=True, help='establisher is required', type=str, location='json')
     parser.add_argument('title', required=True, help='title is required', type=str, location='json')
     parser.add_argument('url', default=None, type=str, location='json')
     parser.add_argument('description', default=None, type=str, location='json')
@@ -74,12 +74,22 @@ class Event(Resource):
     parser.add_argument('tags', default=None, action='append', type=str, location='json')
     args = parser.parse_args()
 
+    # find establisher lastEventId
+    establisher = establisher_db.find_one({ 'name': args['establisher'] })
+    if establisher == None:
+      establisher_db.insert_one({
+        'name': args['establisher'],
+        'lastEventId': 0
+      })
+      establisher = establisher_db.find_one({ 'name': args['establisher'] })
+    lastEventId = establisher['lastEventId'] + 1
+
     now = datetime.now()
     event_db.update_one(
-      { '_id': f'{args["author"]}-{args["id"]}' },
+      { '_id': f'{args["establisher"]}-{lastEventId}' },
       {
         '$set': {
-          'author': args['author'],
+          'establisher': args['establisher'],
           'title': args['title'],
           # 'encodedTitle': embed([args['title']]).numpy().tolist()[0],
           'url': args['url'],
@@ -96,6 +106,7 @@ class Event(Resource):
       },
       upsert=True
     )
+    establisher_db.update_one({ 'name': args['establisher'] }, { '$set': { 'lastEventId': lastEventId } })
     if args['tags']:
       bulk_requests = []
       # embeded = embed(args['tags']).numpy().tolist().reverse()
