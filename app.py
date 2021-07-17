@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from flask import Flask, jsonify
+from flask import Flask, jsonify, render_template
 from flask_cors import CORS
 from flask_restful import Api, Resource, reqparse
 from pymongo import DESCENDING, MongoClient, UpdateOne
@@ -126,6 +126,10 @@ class Tag(Resource):
 api.add_resource(User, '/api/user')
 api.add_resource(Event, '/api/event')
 api.add_resource(Tag, '/api/tag')
+
+@app.route('/')
+def index():
+  return render_template('index.html')
 
 if __name__ == '__main__':
 	app.run(debug=True)
