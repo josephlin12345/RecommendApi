@@ -103,6 +103,17 @@ class Event(Resource):
     else:
       return jsonify({ 'error': f'_id {args["_id"]} not exist' })
 
+  def delete(self):
+    parser = reqparse.RequestParser()
+    parser.add_argument('_id', required=True, help='_id(int) is required', type=int)
+    args = self.parser.parse_args()
+
+    result = event_collection.delete_one({ '_id': args['_id'] })
+    if result.deleted_count:
+      return jsonify({ 'result': f'_id {args["_id"]} deleted' })
+    else:
+      return jsonify({ 'error': f'_id {args["_id"]} not exist' })
+
 class Tag(Resource):
   def post(self):
     parser = reqparse.RequestParser()
