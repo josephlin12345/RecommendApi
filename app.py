@@ -3,7 +3,7 @@ from datetime import datetime
 from flask import Flask, jsonify
 from flask_cors import CORS
 from flask_restful import Api, Resource, reqparse
-from pymongo import DESCENDING, MongoClient, UpdateOne
+from pymongo import ASCENDING, DESCENDING, MongoClient, UpdateOne
 
 # init app
 app = Flask(__name__)
@@ -68,6 +68,11 @@ class Event(Resource):
     self.parser.add_argument('endDate', help='%Y-%m-%dT%H:%M:00.000Z', type=toDate)
     self.parser.add_argument('image', help='image(str)', type=str)
     self.parser.add_argument('tags', help='tags(list of str)', action='append', type=str)
+
+  # temp
+  def get(self):
+    all_event = list(event_collection.find().sort('_id', ASCENDING))
+    return jsonify({ 'result': all_event })
 
   def post(self):
     args = self.parser.parse_args()
