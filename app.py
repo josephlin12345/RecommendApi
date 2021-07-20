@@ -31,7 +31,7 @@ class User(Resource):
 
     data = user_collection.find_one(args['_id'])
     if data:
-      return jsonify({ 'result': data })
+      return jsonify({ 'data': data })
     else:
       return jsonify({ 'error': f'_id {args["_id"]} not exist' })
 
@@ -71,8 +71,8 @@ class Event(Resource):
 
   # temp
   def get(self):
-    all_event = list(event_collection.find().sort('_id', ASCENDING))
-    return jsonify({ 'result': all_event })
+    data = list(event_collection.find().sort('_id', ASCENDING))
+    return jsonify({ 'data': data })
 
   def post(self):
     args = self.parser.parse_args()
