@@ -106,7 +106,7 @@ class Event(Resource):
   def delete(self):
     parser = reqparse.RequestParser()
     parser.add_argument('_id', required=True, help='_id(int) is required', type=int)
-    args = self.parser.parse_args()
+    args = parser.parse_args()
 
     result = event_collection.delete_one({ '_id': args['_id'] })
     if result.deleted_count:
