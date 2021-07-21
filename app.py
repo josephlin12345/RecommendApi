@@ -76,39 +76,45 @@ class Event(Resource):
 
   def post(self):
     args = self.parser.parse_args()
+    if args['establisher'] and args['title']:
 
-    # find lastEventId
-    try:
-      lastEvent = list(event_collection.find().sort('_id', DESCENDING).limit(1))[0]
-      lastEventId = lastEvent['_id']
-    except:
-      lastEventId = 0
+      # find lastEventId
+      try:
+        lastEvent = list(event_collection.find().sort('_id', DESCENDING).limit(1))[0]
+        lastEventId = lastEvent['_id']
+      except:
+        lastEventId = 0
 
-    now = datetime.now()
-    doc = args
-    doc['_id'] = lastEventId + 1
-    doc['tags'] = None if doc['tags'][0] == None else doc['tags']
-    doc['modifyDate'] = now
-    doc['createDate'] = now
-    result = event_collection.insert_one(doc)
-    if result.inserted_id:
-      return jsonify({ 'result': f'_id {result.inserted_id} inserted' })
+      now = datetime.now()
+      doc = args
+      doc['_id'] = lastEventId + 1
+      doc['tags'] = None if doc['tags'][0] == None else doc['tags']
+      doc['modifyDate'] = now
+      doc['createDate'] = now
+      result = event_collection.insert_one(doc)
+      if result.inserted_id:
+        return jsonify({ 'result': f'_id {result.inserted_id} inserted' })
+      else:
+        return jsonify({ 'error': 'something went wrong' })
     else:
-      return jsonify({ 'error': 'something went wrong' })
+      return jsonify({ 'error': 'establisher and title can not be null' })
 
   def patch(self):
     self.parser.add_argument('_id', required=True, help='_id(int) is required', type=int)
     args = self.parser.parse_args()
+    if args['establisher'] and args['title'] and args['_id']:
 
-    now = datetime.now()
-    doc = { arg: value for arg, value in args.items() if value != None}
-    doc['tags'] = None if doc['tags'][0] == None else doc['tags']
-    doc['modifyDate'] = now
-    result = event_collection.find_one_and_update({ '_id': args['_id'] }, { '$set': doc })
-    if result:
-      return jsonify({ 'result': f'_id {args["_id"]} updated' })
+      now = datetime.now()
+      doc = { arg: value for arg, value in args.items() if value != None}
+      doc['tags'] = None if doc['tags'][0] == None else doc['tags']
+      doc['modifyDate'] = now
+      result = event_collection.find_one_and_update({ '_id': args['_id'] }, { '$set': doc })
+      if result:
+        return jsonify({ 'result': f'_id {args["_id"]} updated' })
+      else:
+        return jsonify({ 'error': f'_id {args["_id"]} not exist' })
     else:
-      return jsonify({ 'error': f'_id {args["_id"]} not exist' })
+      return jsonify({ 'error': 'establisher, title and _id can not be null' })
 
   def delete(self):
     parser = reqparse.RequestParser()
