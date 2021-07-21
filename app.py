@@ -87,6 +87,7 @@ class Event(Resource):
     now = datetime.now()
     doc = args
     doc['_id'] = lastEventId + 1
+    doc['tags'] = None if doc['tags'][0] == None else doc['tags']
     doc['modifyDate'] = now
     doc['createDate'] = now
     result = event_collection.insert_one(doc)
@@ -101,6 +102,7 @@ class Event(Resource):
 
     now = datetime.now()
     doc = { arg: value for arg, value in args.items() if value != None}
+    doc['tags'] = None if doc['tags'][0] == None else doc['tags']
     doc['modifyDate'] = now
     result = event_collection.find_one_and_update({ '_id': args['_id'] }, { '$set': doc })
     if result:
