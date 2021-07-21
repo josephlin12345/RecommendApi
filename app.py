@@ -102,7 +102,7 @@ class Event(Resource):
   def patch(self):
     self.parser.add_argument('_id', required=True, help='_id(int) is required', type=int)
     args = self.parser.parse_args()
-    if args['establisher'] and args['title'] and args['_id']:
+    if args['establisher'] and args['title']:
 
       now = datetime.now()
       doc = { arg: value for arg, value in args.items() if value != None}
@@ -114,7 +114,7 @@ class Event(Resource):
       else:
         return jsonify({ 'error': f'_id {args["_id"]} not exist' })
     else:
-      return jsonify({ 'error': 'establisher, title and _id can not be null' })
+      return jsonify({ 'error': 'establisher and title can not be null' })
 
   def delete(self):
     parser = reqparse.RequestParser()
