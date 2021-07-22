@@ -133,19 +133,22 @@ class Tag(Resource):
     parser.add_argument('tags', required=True, help='tags(list of str) is required', action='append', type=str)
     args = parser.parse_args()
 
-    now = datetime.now()
-    result = tag_collection.bulk_write([UpdateOne(
-      { 'name': tag },
-      {
-        '$set': { 'lastUsedDate': now },
-        '$setOnInsert': { 'createDate': now }
-      },
-      upsert=True
-    ) for tag in args['tags']])
-    if result.modified_count or result.upserted_count:
-      return jsonify({ 'result': f'{result.modified_count} tags updated & {result.upserted_count} tags inserted' })
+    if args['tags'][0] != None:
+      now = datetime.now()
+      result = tag_collection.bulk_write([UpdateOne(
+        { 'name': tag },
+        {
+          '$set': { 'lastUsedDate': now },
+          '$setOnInsert': { 'createDate': now }
+        },
+        upsert=True
+      ) for tag in args['tags']])
+      if result.modified_count or result.upserted_count:
+        return jsonify({ 'result': f'{result.modified_count} tags updated & {result.upserted_count} tags inserted' })
+      else:
+        return jsonify({ 'error': 'something went wrong' })
     else:
-      return jsonify({ 'error': 'something went wrong' })
+      return jsonify({ 'result': 'no tag found' })
 
 api.add_resource(User, '/api/user')
 api.add_resource(Event, '/api/event')
