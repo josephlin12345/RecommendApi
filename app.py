@@ -13,14 +13,11 @@ api = Api(app)
 # init db
 client = MongoClient('mongodb+srv://api:gPdCEpVRVWuOnGqp@cluster0.xgkp9.mongodb.net/?ssl=true&ssl_cert_reqs=CERT_NONE&retryWrites=true&w=majority')
 db = client['recommended_system']
-user_collection = db['user']
-event_collection = db['event']
-tag_collection = db['tag']
 
 def toDate(dateString):
   return datetime.strptime(dateString, '%Y-%m-%dT%H:%M:00.000Z')
 
-class User(Resource):
+class Device(Resource):
   def __init__(self):
     self.parser = reqparse.RequestParser()
     self.parser.add_argument('_id', required=True, help='_id(str) is required', type=str)
@@ -29,7 +26,7 @@ class User(Resource):
   def get(self):
     args = self.parser.parse_args()
 
-    data = user_collection.find_one(args['_id'])
+    data = db['device'].find_one(args['_id'])
     if data:
       return jsonify({ 'data': data })
     else:
@@ -40,7 +37,7 @@ class User(Resource):
     args = self.parser.parse_args()
 
     now = datetime.now()
-    result = user_collection.update_one(
+    result = db['device'].update_one(
       { '_id': args['_id'] },
       {
         '$push': {
@@ -54,6 +51,19 @@ class User(Resource):
     )
     if result.modified_count or result.upserted_id:
       return jsonify({ 'result': f'_id {args["_id"]} updated' })
+    else:
+      return jsonify({ 'error': 'something went wrong' })
+
+  def patch(self):
+    self.parser.add_argument('user', required=True, help='user(str) is required', type=str)
+    args = self.parser.parse_args()
+    result = db['device'].update_one(
+      { '_id': args['_id'] },
+      { '$set': { 'user': args['user'] } },
+      upsert=True
+    )
+    if result.modified_count or result.upserted_id:
+      return jsonify({ 'result': f'_id {args["_id"]} registered' })
     else:
       return jsonify({ 'error': 'something went wrong' })
 
@@ -71,7 +81,7 @@ class Event(Resource):
 
   # temp
   def get(self):
-    data = list(event_collection.find().sort('_id', ASCENDING))
+    data = list(db['event'].find().sort('_id', ASCENDING))
     return jsonify({ 'data': data })
 
   def post(self):
@@ -80,7 +90,7 @@ class Event(Resource):
 
       # find lastEventId
       try:
-        lastEvent = list(event_collection.find().sort('_id', DESCENDING).limit(1))[0]
+        lastEvent = list(db['event'].find().sort('_id', DESCENDING).limit(1))[0]
         lastEventId = lastEvent['_id']
       except:
         lastEventId = 0
@@ -91,7 +101,7 @@ class Event(Resource):
       doc['tags'] = None if doc['tags'][0] == None else doc['tags']
       doc['modifyDate'] = now
       doc['createDate'] = now
-      result = event_collection.insert_one(doc)
+      result = db['event'].insert_one(doc)
       if result.inserted_id:
         return jsonify({ 'result': f'_id {result.inserted_id} inserted' })
       else:
@@ -108,7 +118,7 @@ class Event(Resource):
       doc = { arg: value for arg, value in args.items() if value != None}
       doc['tags'] = None if doc['tags'][0] == None else doc['tags']
       doc['modifyDate'] = now
-      result = event_collection.find_one_and_update({ '_id': args['_id'] }, { '$set': doc })
+      result = db['event'].find_one_and_update({ '_id': args['_id'] }, { '$set': doc })
       if result:
         return jsonify({ 'result': f'_id {args["_id"]} updated' })
       else:
@@ -121,7 +131,7 @@ class Event(Resource):
     parser.add_argument('_id', required=True, help='_id(int) is required', type=int)
     args = parser.parse_args()
 
-    result = event_collection.delete_one({ '_id': args['_id'] })
+    result = db['event'].delete_one({ '_id': args['_id'] })
     if result.deleted_count:
       return jsonify({ 'result': f'_id {args["_id"]} deleted' })
     else:
@@ -135,7 +145,7 @@ class Tag(Resource):
 
     if args['tags'][0] != None:
       now = datetime.now()
-      result = tag_collection.bulk_write([UpdateOne(
+      result = db['tag'].bulk_write([UpdateOne(
         { 'name': tag },
         {
           '$set': { 'lastUsedDate': now },
@@ -150,7 +160,7 @@ class Tag(Resource):
     else:
       return jsonify({ 'result': 'no tag found' })
 
-api.add_resource(User, '/api/user')
+api.add_resource(Device, '/api/device')
 api.add_resource(Event, '/api/event')
 api.add_resource(Tag, '/api/tag')
 
