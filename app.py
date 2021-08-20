@@ -14,117 +14,164 @@ api = Api(app)
 client = MongoClient('mongodb+srv://api:gPdCEpVRVWuOnGqp@cluster0.xgkp9.mongodb.net/?ssl=true&ssl_cert_reqs=CERT_NONE&retryWrites=true&w=majority')
 db = client['recommended_system']
 
-def toDate(dateString):
-  return datetime.strptime(dateString, '%Y-%m-%dT%H:%M:00.000Z')
-
 class Device(Resource):
+  def post(self):
+    parser = reqparse.RequestParser()
+    parser.add_argument('email', required=True, help='email(str) is required', type=str)
+    parser.add_argument('deviceId', required=True, help='deviceId(str) is required', type=str)
+    args = parser.parse_args()
+
+    user = db['user'].find_one({ f'device.{args["deviceId"]}': { '$exists': True } })
+    if not user:
+      result = db['user'].update_one(
+        { 'email': args['email'] },
+        { '$set': { f'device.{args["deviceId"]}': {} } },
+        upsert=True
+      )
+      if result.modified_count or result.upserted_id:
+        return jsonify({ 'result': f'device {args["deviceId"]} registered' })
+      else:
+        return jsonify({ 'error': 'something went wrong' })
+    else:
+      return jsonify({ 'result': f'device {args["deviceId"]} has been registered' })
+
+class User(Resource):
   def __init__(self):
     self.parser = reqparse.RequestParser()
-    self.parser.add_argument('_id', required=True, help='_id(str) is required', type=str)
+    self.parser.add_argument('email', type=str)
+    self.parser.add_argument('deviceId', type=str)
 
-  # temp
+  #temp
   def get(self):
     args = self.parser.parse_args()
 
-    data = db['device'].find_one(args['_id'])
+    if args['email']:
+      query = { 'email': args['email'] }
+    elif args['deviceId']:
+      query = { 'device': args['deviceId'] }
+    else:
+      return jsonify({ 'error': 'must have email or deviceId' })
+
+    data = db['user'].find_one(query)
     if data:
       return jsonify({ 'data': data })
     else:
-      return jsonify({ 'error': f'_id {args["_id"]} not exist' })
+      return jsonify({ 'error': 'user not exist' })
 
   def post(self):
-    self.parser.add_argument('pageTitle', required=True, help='pageTitle(str) is required', type=str)
+    self.parser.add_argument('title', required=True, help='title(str) is required', type=str)
     args = self.parser.parse_args()
 
-    now = datetime.now()
-    result = db['device'].update_one(
-      { '_id': args['_id'] },
-      {
-        '$push': {
-          f'pageTitles.{now.strftime("%Y-%m-%d")}': {
-            'pageTitle': args['pageTitle'],
-            'timestamp': now
-          }
-        }
-      },
-      upsert=True
-    )
-    if result.modified_count or result.upserted_id:
-      return jsonify({ 'result': f'_id {args["_id"]} updated' })
-    else:
-      return jsonify({ 'error': 'something went wrong' })
+    if args['title']:
+      now = datetime.now()
+      today = now.strftime('%Y-%m-%d')
+      data = {
+        'title': args['title'],
+        'timestamp': now
+      }
 
-  def patch(self):
-    self.parser.add_argument('user', required=True, help='user(str) is required', type=str)
-    args = self.parser.parse_args()
-    result = db['device'].update_one(
-      { '_id': args['_id'] },
-      { '$set': { 'user': args['user'] } },
-      upsert=True
-    )
-    if result.modified_count or result.upserted_id:
-      return jsonify({ 'result': f'_id {args["_id"]} registered' })
+      if args['email']:
+        result = db['user'].update_one(
+          { 'email': args['email'] },
+          { '$push': { f'device.default.{today}': data } },
+          upsert=True
+        )
+      elif args['deviceId']:
+        result = db['user'].update_one(
+          { f'device.{args["deviceId"]}': { '$exists': True } },
+          { '$push': { f'device.{args["deviceId"]}.{today}': data } }
+        )
+      else:
+        return jsonify({ 'error': 'must have email or deviceId' })
+
+      if result.modified_count:
+        return jsonify({ 'result': f'{result.modified_count} modified' })
+      elif result.upserted_id:
+        return jsonify({ 'result': f'user {result.upserted_id} inserted' })
+      else:
+        return jsonify({ 'error': f'device {args["deviceId"]} did not exist' })
     else:
-      return jsonify({ 'error': 'something went wrong' })
+      return jsonify({ 'error': 'must have title in args' })
 
 class Event(Resource):
   def __init__(self):
     self.parser = reqparse.RequestParser()
-    self.parser.add_argument('establisher', required=True, help='establisher(str) is required', type=str)
-    self.parser.add_argument('title', required=True, help='title(str) is required', type=str)
-    self.parser.add_argument('url', help='url(str)', type=str)
-    self.parser.add_argument('description', help='description(str)', type=str)
-    self.parser.add_argument('startDate', help='%Y-%m-%dT%H:%M:00.000Z', type=toDate)
-    self.parser.add_argument('endDate', help='%Y-%m-%dT%H:%M:00.000Z', type=toDate)
-    self.parser.add_argument('image', help='image(str)', type=str)
-    self.parser.add_argument('tags', help='tags(list of str)', action='append', type=str)
+    self.parser.add_argument('string', required=True, help='string(dict) is required', type=dict)
+    self.parser.add_argument('number', required=True, help='number(dict) is required', type=dict)
+    self.parser.add_argument('date', required=True, help='date(dict) is required', type=dict)
+    self.parser.add_argument('list', required=True, help='list(dict) is required', type=dict)
+    self.string_parser = reqparse.RequestParser()
+    self.string_parser.add_argument('establisher', required=True, help='establisher(str) is required', type=str, location='string')
+    self.string_parser.add_argument('title', required=True, help='title(str) is required', type=str, location='string')
 
-  # temp
+  def make_doc(self, args, now):
+    doc = {}
+    doc.update(args['string'])
+    doc.update(args['number'])
+    doc.update(args['list'])
+    doc.update((key, datetime.strptime(value, '%Y-%m-%dT%H:%M:00.000Z')) for key, value in args['date'].items())
+    doc['modifyDate'] = now
+    return doc
+
+  def update_tags(self, tags, now):
+    db['tag'].bulk_write([UpdateOne(
+      { 'name': tag },
+      {
+        '$set': { 'lastUsedDate': now },
+        '$setOnInsert': { 'createDate': now }
+      },
+      upsert=True
+    ) for tag in tags])
+
+  #temp
   def get(self):
     data = list(db['event'].find().sort('_id', ASCENDING))
     return jsonify({ 'data': data })
 
   def post(self):
     args = self.parser.parse_args()
-    if args['establisher'] and args['title']:
+    string_args = self.string_parser.parse_args(req=args)
 
-      # find lastEventId
+    if string_args['establisher'] and string_args['title']:
+      now = datetime.now()
+      doc = self.make_doc(args, now)
       try:
         lastEvent = list(db['event'].find().sort('_id', DESCENDING).limit(1))[0]
-        lastEventId = lastEvent['_id']
+        doc['_id'] = lastEvent['_id'] + 1
       except:
-        lastEventId = 0
-
-      now = datetime.now()
-      doc = args
-      doc['_id'] = lastEventId + 1
-      doc['tags'] = None if doc['tags'][0] == None else doc['tags']
-      doc['modifyDate'] = now
+        doc['_id'] = 1
       doc['createDate'] = now
+
+      if 'tags' in args['list']:
+        self.update_tags(args['list']['tags'], now)
+
       result = db['event'].insert_one(doc)
       if result.inserted_id:
         return jsonify({ 'result': f'_id {result.inserted_id} inserted' })
       else:
         return jsonify({ 'error': 'something went wrong' })
     else:
-      return jsonify({ 'error': 'establisher and title can not be null' })
+      return jsonify({ 'error': 'must have establisher and title in string args' })
 
   def patch(self):
     self.parser.add_argument('_id', required=True, help='_id(int) is required', type=int)
     args = self.parser.parse_args()
-    if args['establisher'] and args['title']:
+    string_args = self.string_parser.parse_args(req=args)
 
+    if string_args['establisher'] and string_args['title']:
       now = datetime.now()
-      doc = { arg: value for arg, value in args.items() if value != None}
-      doc['tags'] = None if doc['tags'][0] == None else doc['tags']
-      doc['modifyDate'] = now
-      result = db['event'].find_one_and_update({ '_id': args['_id'] }, { '$set': doc })
-      if result:
+      doc = self.make_doc(args, now)
+
+      if 'tags' in args['list']:
+        self.update_tags(args['list']['tags'], now)
+
+      result = db['event'].update_one({ '_id': args['_id'] }, { '$set': doc })
+      if result.modified_count:
         return jsonify({ 'result': f'_id {args["_id"]} updated' })
       else:
-        return jsonify({ 'error': f'_id {args["_id"]} not exist' })
+        return jsonify({ 'error': 'something went wrong' })
     else:
-      return jsonify({ 'error': 'establisher and title can not be null' })
+      return jsonify({ 'error': 'must have establisher and title in string args' })
 
   def delete(self):
     parser = reqparse.RequestParser()
@@ -137,32 +184,9 @@ class Event(Resource):
     else:
       return jsonify({ 'error': f'_id {args["_id"]} not exist' })
 
-class Tag(Resource):
-  def post(self):
-    parser = reqparse.RequestParser()
-    parser.add_argument('tags', required=True, help='tags(list of str) is required', action='append', type=str)
-    args = parser.parse_args()
-
-    if args['tags'][0] != None:
-      now = datetime.now()
-      result = db['tag'].bulk_write([UpdateOne(
-        { 'name': tag },
-        {
-          '$set': { 'lastUsedDate': now },
-          '$setOnInsert': { 'createDate': now }
-        },
-        upsert=True
-      ) for tag in args['tags']])
-      if result.modified_count or result.upserted_count:
-        return jsonify({ 'result': f'{result.modified_count} tags updated & {result.upserted_count} tags inserted' })
-      else:
-        return jsonify({ 'error': 'something went wrong' })
-    else:
-      return jsonify({ 'result': 'no tag found' })
-
 api.add_resource(Device, '/api/device')
+api.add_resource(User, '/api/user')
 api.add_resource(Event, '/api/event')
-api.add_resource(Tag, '/api/tag')
 
 if __name__ == '__main__':
 	app.run(debug=True)
