@@ -38,29 +38,46 @@ class Device(Resource):
 class User(Resource):
   def __init__(self):
     self.parser = reqparse.RequestParser()
-    self.parser.add_argument('email', type=str)
-    self.parser.add_argument('deviceId', type=str)
+    self.parser.add_argument('email', required=True, help='email(str) is required', type=str)
 
-  #temp
   def get(self):
     args = self.parser.parse_args()
 
     if args['email']:
-      query = { 'email': args['email'] }
-    elif args['deviceId']:
-      query = { 'device': args['deviceId'] }
+      data = db['user'].find_one(args, projection={ '_id': False, 'device': False })
+      if data:
+        return jsonify({ 'data': data })
+      else:
+        return jsonify({ 'error': f'user {args["email"]} does not exist' })
     else:
       return jsonify({ 'error': 'must have email or deviceId' })
 
-    data = db['user'].find_one(query)
-    if data:
-      return jsonify({ 'data': data })
-    else:
-      return jsonify({ 'error': 'user not exist' })
-
   def post(self):
-    self.parser.add_argument('title', required=True, help='title(str) is required', type=str)
+    self.parser.add_argument('name', type=str)
+    self.parser.add_argument('birthday', type=str)
+    self.parser.add_argument('gender', type=str)
     args = self.parser.parse_args()
+
+    if args['email']:
+      result = db['user'].update_one(
+        { 'email': args['email'] },
+        { '$set': args},
+        upsert=True
+      )
+      if result.matched_count:
+        return jsonify({ 'result': f'user {args["email"]} updated' })
+      else:
+        return jsonify({ 'error': 'something went wrong' })
+    else:
+      return jsonify({ 'error': 'must have email' })
+
+class History(Resource):
+  def post(self):
+    parser = reqparse.RequestParser()
+    parser.add_argument('email', type=str)
+    parser.add_argument('deviceId', type=str)
+    parser.add_argument('title', required=True, help='title(str) is required', type=str)
+    args = parser.parse_args()
 
     if args['title']:
       now = datetime.now()
@@ -84,10 +101,8 @@ class User(Resource):
       else:
         return jsonify({ 'error': 'must have email or deviceId' })
 
-      if result.modified_count:
-        return jsonify({ 'result': f'{result.modified_count} modified' })
-      elif result.upserted_id:
-        return jsonify({ 'result': f'user {result.upserted_id} inserted' })
+      if result.matched_count:
+        return jsonify({ 'result': f'{result.matched_count} modified' })
       else:
         return jsonify({ 'error': f'device {args["deviceId"]} did not exist' })
     else:
@@ -178,7 +193,7 @@ class Event(Resource):
     parser.add_argument('_id', required=True, help='_id(int) is required', type=int)
     args = parser.parse_args()
 
-    result = db['event'].delete_one({ '_id': args['_id'] })
+    result = db['event'].delete_one(args)
     if result.deleted_count:
       return jsonify({ 'result': f'_id {args["_id"]} deleted' })
     else:
@@ -186,7 +201,8 @@ class Event(Resource):
 
 api.add_resource(Device, '/api/device')
 api.add_resource(User, '/api/user')
+api.add_resource(History, '/api/history')
 api.add_resource(Event, '/api/event')
 
 if __name__ == '__main__':
-	app.run(debug=True)
+	app.run()
