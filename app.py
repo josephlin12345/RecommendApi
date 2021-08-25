@@ -1,9 +1,11 @@
+import json
 from datetime import datetime
 
-from flask import Flask, jsonify
+from bson.objectid import ObjectId
+from flask import Flask
 from flask_cors import CORS
 from flask_restful import Api, Resource, reqparse
-from pymongo import ASCENDING, DESCENDING, MongoClient, UpdateOne
+from pymongo import DESCENDING, MongoClient, UpdateOne
 
 # init app
 app = Flask(__name__)
@@ -17,40 +19,40 @@ db = client['recommended_system']
 class Device(Resource):
   def post(self):
     parser = reqparse.RequestParser()
-    parser.add_argument('email', required=True, help='email(str) is required', type=str)
-    parser.add_argument('deviceId', required=True, help='deviceId(str) is required', type=str)
+    parser.add_argument('email', required=True, type=str)
+    parser.add_argument('deviceId', required=True, type=str)
     args = parser.parse_args()
 
-    user = db['user'].find_one({ f'device.{args["deviceId"]}': { '$exists': True } })
+    user = db['user'].find_one({ 'device': args['deviceId'] }, projection={})
     if not user:
       result = db['user'].update_one(
         { 'email': args['email'] },
-        { '$set': { f'device.{args["deviceId"]}': {} } },
+        { '$push': { 'device': args['deviceId'] } },
         upsert=True
       )
-      if result.modified_count or result.upserted_id:
-        return jsonify({ 'result': f'device {args["deviceId"]} registered' })
+      if result.matched_count or result.upserted_id:
+        return { 'result': f'device {args["deviceId"]} registered' }
       else:
-        return jsonify({ 'error': 'something went wrong' })
+        return { 'error': 'something went wrong' }
     else:
-      return jsonify({ 'result': f'device {args["deviceId"]} has been registered' })
+      return { 'result': f'device {args["deviceId"]} has been registered' }
 
 class User(Resource):
   def __init__(self):
     self.parser = reqparse.RequestParser()
-    self.parser.add_argument('email', required=True, help='email(str) is required', type=str)
+    self.parser.add_argument('email', required=True, type=str)
 
   def get(self):
     args = self.parser.parse_args()
 
     if args['email']:
-      data = db['user'].find_one(args, projection={ '_id': False, 'device': False })
-      if data:
-        return jsonify({ 'data': data })
+      user = db['user'].find_one(args, projection={ 'device': False, 'history': False, 'recommend': False })
+      if user:
+        return json.dumps({ 'user': user }, ensure_ascii=False, default=str)
       else:
-        return jsonify({ 'error': f'user {args["email"]} does not exist' })
+        return { 'error': f'user {args["email"]} does not exist' }
     else:
-      return jsonify({ 'error': 'must have email or deviceId' })
+      return { 'error': 'need email or deviceId' }
 
   def post(self):
     self.parser.add_argument('name', type=str)
@@ -61,22 +63,22 @@ class User(Resource):
     if args['email']:
       result = db['user'].update_one(
         { 'email': args['email'] },
-        { '$set': args},
+        { '$set': args },
         upsert=True
       )
-      if result.matched_count:
-        return jsonify({ 'result': f'user {args["email"]} updated' })
+      if result.matched_count or result.upserted_id:
+        return { 'result': f'user {args["email"]} updated' }
       else:
-        return jsonify({ 'error': 'something went wrong' })
+        return { 'error': 'something went wrong' }
     else:
-      return jsonify({ 'error': 'must have email' })
+      return { 'error': 'need email' }
 
 class History(Resource):
   def post(self):
     parser = reqparse.RequestParser()
     parser.add_argument('email', type=str)
     parser.add_argument('deviceId', type=str)
-    parser.add_argument('title', required=True, help='title(str) is required', type=str)
+    parser.add_argument('title', required=True, type=str)
     args = parser.parse_args()
 
     if args['title']:
@@ -90,34 +92,34 @@ class History(Resource):
       if args['email']:
         result = db['user'].update_one(
           { 'email': args['email'] },
-          { '$push': { f'device.default.{today}': data } },
+          { '$push': { f'history.{today}': data } },
           upsert=True
         )
       elif args['deviceId']:
         result = db['user'].update_one(
-          { f'device.{args["deviceId"]}': { '$exists': True } },
-          { '$push': { f'device.{args["deviceId"]}.{today}': data } }
+          { 'device': args['deviceId'] },
+          { '$push': { f'history.{today}': data } }
         )
       else:
-        return jsonify({ 'error': 'must have email or deviceId' })
+        return { 'error': 'need email or deviceId' }
 
-      if result.matched_count:
-        return jsonify({ 'result': f'{result.matched_count} modified' })
+      if result.matched_count or result.upserted_id:
+        return { 'result': f'{result.matched_count} modified' }
       else:
-        return jsonify({ 'error': f'device {args["deviceId"]} did not exist' })
+        return { 'error': f'device {args["deviceId"]} does not exist' }
     else:
-      return jsonify({ 'error': 'must have title in args' })
+      return { 'error': 'need title in args' }
 
 class Event(Resource):
   def __init__(self):
     self.parser = reqparse.RequestParser()
-    self.parser.add_argument('string', required=True, help='string(dict) is required', type=dict)
-    self.parser.add_argument('number', required=True, help='number(dict) is required', type=dict)
-    self.parser.add_argument('date', required=True, help='date(dict) is required', type=dict)
-    self.parser.add_argument('list', required=True, help='list(dict) is required', type=dict)
+    self.parser.add_argument('string', required=True, type=dict)
+    self.parser.add_argument('number', required=True, type=dict)
+    self.parser.add_argument('date', required=True, type=dict)
+    self.parser.add_argument('list', required=True, type=dict)
     self.string_parser = reqparse.RequestParser()
-    self.string_parser.add_argument('establisher', required=True, help='establisher(str) is required', type=str, location='string')
-    self.string_parser.add_argument('title', required=True, help='title(str) is required', type=str, location='string')
+    self.string_parser.add_argument('establisher', required=True, type=str, location='string')
+    self.string_parser.add_argument('title', required=True, type=str, location='string')
 
   def make_doc(self, args, now):
     doc = {}
@@ -138,10 +140,9 @@ class Event(Resource):
       upsert=True
     ) for tag in tags])
 
-  #temp
   def get(self):
-    data = list(db['event'].find().sort('_id', ASCENDING))
-    return jsonify({ 'data': data })
+    events = list(db['event'].find().sort('modifyDate', DESCENDING))
+    return { 'events': events }
 
   def post(self):
     args = self.parser.parse_args()
@@ -150,11 +151,6 @@ class Event(Resource):
     if string_args['establisher'] and string_args['title']:
       now = datetime.now()
       doc = self.make_doc(args, now)
-      try:
-        lastEvent = list(db['event'].find().sort('_id', DESCENDING).limit(1))[0]
-        doc['_id'] = lastEvent['_id'] + 1
-      except:
-        doc['_id'] = 1
       doc['createDate'] = now
 
       if 'tags' in args['list']:
@@ -162,14 +158,14 @@ class Event(Resource):
 
       result = db['event'].insert_one(doc)
       if result.inserted_id:
-        return jsonify({ 'result': f'_id {result.inserted_id} inserted' })
+        return { 'result': f'_id {result.inserted_id} inserted' }
       else:
-        return jsonify({ 'error': 'something went wrong' })
+        return { 'error': 'something went wrong' }
     else:
-      return jsonify({ 'error': 'must have establisher and title in string args' })
+      return { 'error': 'need establisher and title in string args' }
 
   def patch(self):
-    self.parser.add_argument('_id', required=True, help='_id(int) is required', type=int)
+    self.parser.add_argument('_id', required=True, type=ObjectId)
     args = self.parser.parse_args()
     string_args = self.string_parser.parse_args(req=args)
 
@@ -181,28 +177,48 @@ class Event(Resource):
         self.update_tags(args['list']['tags'], now)
 
       result = db['event'].update_one({ '_id': args['_id'] }, { '$set': doc })
-      if result.modified_count:
-        return jsonify({ 'result': f'_id {args["_id"]} updated' })
+      if result.matched_count:
+        return { 'result': f'_id {args["_id"]} updated' }
       else:
-        return jsonify({ 'error': 'something went wrong' })
+        return { 'error': f'_id {args["_id"]} does not exist' }
     else:
-      return jsonify({ 'error': 'must have establisher and title in string args' })
+      return { 'error': 'need establisher and title in string args' }
 
   def delete(self):
     parser = reqparse.RequestParser()
-    parser.add_argument('_id', required=True, help='_id(int) is required', type=int)
+    parser.add_argument('_id', required=True, type=ObjectId)
     args = parser.parse_args()
 
     result = db['event'].delete_one(args)
     if result.deleted_count:
-      return jsonify({ 'result': f'_id {args["_id"]} deleted' })
+      return { 'result': f'_id {args["_id"]} deleted' }
     else:
-      return jsonify({ 'error': f'_id {args["_id"]} not exist' })
+      return { 'error': f'_id {args["_id"]} does not exist' }
+
+class Recommend(Resource):
+  def get(self):
+    parser = reqparse.RequestParser()
+    parser.add_argument('email', required=True, type=str)
+    args = parser.parse_args()
+
+    if args['email']:
+      user = db['user'].find_one({ 'email': args['email'] }, projection={ 'recommend': True })
+      if user:
+        if 'recommend' in user:
+          events = db['event'].find({ '_id': { '$in': user['recommend'] } })
+          return json.dumps({ 'events': list(events) }, ensure_ascii=False, default=str)
+        else:
+          return { 'error': 'recommend did not update' }
+      else:
+        return { 'error': f'user {args["email"]} does not exist' }
+    else:
+      return { 'error': 'need email' }
 
 api.add_resource(Device, '/api/device')
 api.add_resource(User, '/api/user')
 api.add_resource(History, '/api/history')
 api.add_resource(Event, '/api/event')
+api.add_resource(Recommend, '/api/recommend')
 
 if __name__ == '__main__':
 	app.run()
