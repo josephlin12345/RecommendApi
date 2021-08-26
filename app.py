@@ -23,19 +23,22 @@ class Device(Resource):
     parser.add_argument('deviceId', required=True, type=str)
     args = parser.parse_args()
 
-    user = db['user'].find_one({ 'device': args['deviceId'] }, projection={})
-    if not user:
-      result = db['user'].update_one(
-        { 'email': args['email'] },
-        { '$push': { 'device': args['deviceId'] } },
-        upsert=True
-      )
-      if result.matched_count or result.upserted_id:
-        return { 'result': f'device {args["deviceId"]} registered' }
+    if args['email']:
+      user = db['user'].find_one({ 'device': args['deviceId'] }, projection={})
+      if not user:
+        result = db['user'].update_one(
+          { 'email': args['email'] },
+          { '$push': { 'device': args['deviceId'] } },
+          upsert=True
+        )
+        if result.matched_count or result.upserted_id:
+          return { 'result': f'device {args["deviceId"]} registered' }
+        else:
+          return { 'error': 'something went wrong' }
       else:
-        return { 'error': 'something went wrong' }
+        return { 'result': f'device {args["deviceId"]} has been registered' }
     else:
-      return { 'result': f'device {args["deviceId"]} has been registered' }
+      return { 'error': 'need email' }
 
 class User(Resource):
   def __init__(self):
