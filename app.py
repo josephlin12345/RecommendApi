@@ -204,10 +204,11 @@ class Recommend(Resource):
       user = db['user'].find_one({ 'email': args['email'] }, projection={ 'recommend': True })
       if user:
         if 'recommend' in user:
-          events = db['event'].find({ '_id': { '$in': user['recommend'] } })
-          events = {event['_id']: event for event in events}
-          events = [events[_id] for _id in user['recommend']]
-          return json.dumps({ 'events': list(events) }, ensure_ascii=False, default=str)
+          correspond = { recommend['_id']: recommend['score'] for recommend in user['recommend'] }
+          events = db['event'].find({ '_id': { '$in': list(correspond.keys()) } })
+          recommend = [{ 'event': event, 'score': correspond[event['_id']] } for event in events]
+          recommend.sort(key=lambda e: e['score'], reverse=True)
+          return json.dumps(recommend, ensure_ascii=False, default=str)
         else:
           return { 'error': 'recommend did not update' }
       else:
