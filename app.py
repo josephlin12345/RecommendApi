@@ -143,7 +143,7 @@ class Event(Resource):
   def make_doc(self, args):
     doc = {}
     doc.update(args['info'])
-    if 'date' in doc:
+    if 'date' in args:
       doc.update((key, datetime.strptime(value, '%Y-%m-%dT%H:%M:00.000Z')) for key, value in args['date'].items())
     doc['modifyDate'] = self.now
     return doc
