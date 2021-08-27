@@ -116,19 +116,15 @@ class History(Resource):
 class Event(Resource):
   def __init__(self):
     self.parser = reqparse.RequestParser()
-    self.parser.add_argument('string', required=True, type=dict)
-    self.parser.add_argument('number', required=True, type=dict)
+    self.parser.add_argument('info', required=True, type=dict)
     self.parser.add_argument('date', required=True, type=dict)
-    self.parser.add_argument('list', required=True, type=dict)
-    self.string_parser = reqparse.RequestParser()
-    self.string_parser.add_argument('establisher', required=True, type=str, location='string')
-    self.string_parser.add_argument('title', required=True, type=str, location='string')
+    self.info_parser = reqparse.RequestParser()
+    self.info_parser.add_argument('establisher', required=True, type=str, location='info')
+    self.info_parser.add_argument('title', required=True, type=str, location='info')
 
   def make_doc(self, args, now):
     doc = {}
-    doc.update(args['string'])
-    doc.update(args['number'])
-    doc.update(args['list'])
+    doc.update(args['info'])
     doc.update((key, datetime.strptime(value, '%Y-%m-%dT%H:%M:00.000Z')) for key, value in args['date'].items())
     doc['modifyDate'] = now
     return doc
@@ -149,15 +145,15 @@ class Event(Resource):
 
   def post(self):
     args = self.parser.parse_args()
-    string_args = self.string_parser.parse_args(req=args)
+    info_args = self.info_parser.parse_args(req=args)
 
-    if string_args['establisher'] and string_args['title']:
+    if info_args['establisher'] and info_args['title']:
       now = datetime.now()
       doc = self.make_doc(args, now)
       doc['createDate'] = now
 
-      if 'tags' in args['list']:
-        self.update_tags(args['list']['tags'], now)
+      if 'tags' in args['info']:
+        self.update_tags(args['info']['tags'], now)
 
       result = db['event'].insert_one(doc)
       if result.inserted_id:
@@ -170,14 +166,14 @@ class Event(Resource):
   def patch(self):
     self.parser.add_argument('_id', required=True, type=ObjectId)
     args = self.parser.parse_args()
-    string_args = self.string_parser.parse_args(req=args)
+    info_args = self.info_parser.parse_args(req=args)
 
-    if string_args['establisher'] and string_args['title']:
+    if info_args['establisher'] and info_args['title']:
       now = datetime.now()
       doc = self.make_doc(args, now)
 
-      if 'tags' in args['list']:
-        self.update_tags(args['list']['tags'], now)
+      if 'tags' in args['info']:
+        self.update_tags(args['info']['tags'], now)
 
       result = db['event'].update_one({ '_id': args['_id'] }, { '$set': doc })
       if result.matched_count:
@@ -209,6 +205,7 @@ class Recommend(Resource):
       if user:
         if 'recommend' in user:
           events = db['event'].find({ '_id': { '$in': user['recommend'] } })
+          events = [events for _id in user['recommend']]
           return json.dumps({ 'events': list(events) }, ensure_ascii=False, default=str)
         else:
           return { 'error': 'recommend did not update' }
