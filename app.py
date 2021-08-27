@@ -26,9 +26,16 @@ class Device(Resource):
     if args['email']:
       user = db['user'].find_one({ 'device': args['deviceId'] }, projection={})
       if not user:
+        now = datetime.now()
         result = db['user'].update_one(
           { 'email': args['email'] },
-          { '$push': { 'device': args['deviceId'] } },
+          {
+            '$push': { 'device': args['deviceId'] },
+            '$setOnInsert': {
+              'createDate': now,
+              'modifyDate': now
+            }
+          },
           upsert=True
         )
         if result.matched_count or result.upserted_id:
@@ -51,7 +58,7 @@ class User(Resource):
     if args['email']:
       user = db['user'].find_one(args, projection={ 'device': False, 'history': False, 'recommend': False })
       if user:
-        return json.dumps({ 'user': user }, ensure_ascii=False, default=str)
+        return json.loads(json.dumps({ 'user': user }, ensure_ascii=False, default=str))
       else:
         return { 'error': f'user {args["email"]} does not exist' }
     else:
@@ -64,9 +71,14 @@ class User(Resource):
     args = self.parser.parse_args()
 
     if args['email']:
+      now = datetime.now()
+      args['modifyDate'] = now
       result = db['user'].update_one(
         { 'email': args['email'] },
-        { '$set': args },
+        {
+          '$set': args,
+          '$setOnInsert': { 'createDate': now }
+        },
         upsert=True
       )
       if result.matched_count or result.upserted_id:
@@ -95,7 +107,13 @@ class History(Resource):
       if args['email']:
         result = db['user'].update_one(
           { 'email': args['email'] },
-          { '$push': { f'history.{today}': data } },
+          {
+            '$push': { f'history.{today}': data },
+            '$setOnInsert': {
+              'createDate': now,
+              'modifyDate': now
+            }
+          },
           upsert=True
         )
       elif args['deviceId']:
@@ -141,7 +159,7 @@ class Event(Resource):
 
   def get(self):
     events = list(db['event'].find().sort('modifyDate', DESCENDING))
-    return { 'events': events }
+    return json.loads(json.dumps({ 'events': events }, ensure_ascii=False, default=str))
 
   def post(self):
     args = self.parser.parse_args()
@@ -208,7 +226,7 @@ class Recommend(Resource):
           events = db['event'].find({ '_id': { '$in': list(correspond.keys()) } })
           recommend = [{ 'event': event, 'score': correspond[event['_id']] } for event in events]
           recommend.sort(key=lambda e: e['score'], reverse=True)
-          return json.dumps(recommend, ensure_ascii=False, default=str)
+          return json.loads(json.dumps(recommend, ensure_ascii=False, default=str))
         else:
           return { 'error': 'recommend did not update' }
       else:
