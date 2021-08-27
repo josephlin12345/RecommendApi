@@ -135,7 +135,7 @@ class Event(Resource):
   def __init__(self):
     self.parser = reqparse.RequestParser()
     self.parser.add_argument('info', required=True, type=dict)
-    self.parser.add_argument('date', required=True, type=dict)
+    self.parser.add_argument('date', type=dict)
     self.info_parser = reqparse.RequestParser()
     self.info_parser.add_argument('establisher', required=True, type=str, location='info')
     self.info_parser.add_argument('title', required=True, type=str, location='info')
@@ -143,7 +143,8 @@ class Event(Resource):
   def make_doc(self, args):
     doc = {}
     doc.update(args['info'])
-    doc.update((key, datetime.strptime(value, '%Y-%m-%dT%H:%M:00.000Z')) for key, value in args['date'].items())
+    if 'date' in doc:
+      doc.update((key, datetime.strptime(value, '%Y-%m-%dT%H:%M:00.000Z')) for key, value in args['date'].items())
     doc['modifyDate'] = self.now
     return doc
 
