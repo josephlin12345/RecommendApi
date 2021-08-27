@@ -122,19 +122,19 @@ class Event(Resource):
     self.info_parser.add_argument('establisher', required=True, type=str, location='info')
     self.info_parser.add_argument('title', required=True, type=str, location='info')
 
-  def make_doc(self, args, now):
+  def make_doc(self, args):
     doc = {}
     doc.update(args['info'])
     doc.update((key, datetime.strptime(value, '%Y-%m-%dT%H:%M:00.000Z')) for key, value in args['date'].items())
-    doc['modifyDate'] = now
+    doc['modifyDate'] = self.now
     return doc
 
-  def update_tags(self, tags, now):
+  def update_tags(self, tags):
     db['tag'].bulk_write([UpdateOne(
       { 'name': tag },
       {
-        '$set': { 'lastUsedDate': now },
-        '$setOnInsert': { 'createDate': now }
+        '$set': { 'lastUsedDate': self.now },
+        '$setOnInsert': { 'createDate': self.now }
       },
       upsert=True
     ) for tag in tags])
@@ -148,12 +148,12 @@ class Event(Resource):
     info_args = self.info_parser.parse_args(req=args)
 
     if info_args['establisher'] and info_args['title']:
-      now = datetime.now()
-      doc = self.make_doc(args, now)
-      doc['createDate'] = now
+      self.now = datetime.now()
+      doc = self.make_doc(args)
+      doc['createDate'] = self.now
 
-      if 'tags' in args['info']:
-        self.update_tags(args['info']['tags'], now)
+      if 'tags' in args['info'] and isinstance(args['info']['tags'], list):
+        self.update_tags(args['info']['tags'])
 
       result = db['event'].insert_one(doc)
       if result.inserted_id:
@@ -169,11 +169,11 @@ class Event(Resource):
     info_args = self.info_parser.parse_args(req=args)
 
     if info_args['establisher'] and info_args['title']:
-      now = datetime.now()
-      doc = self.make_doc(args, now)
+      self.now = datetime.now()
+      doc = self.make_doc(args)
 
-      if 'tags' in args['info']:
-        self.update_tags(args['info']['tags'], now)
+      if 'tags' in args['info'] and isinstance(args['info']['tags'], list):
+        self.update_tags(args['info']['tags'])
 
       result = db['event'].update_one({ '_id': args['_id'] }, { '$set': doc })
       if result.matched_count:
@@ -205,7 +205,8 @@ class Recommend(Resource):
       if user:
         if 'recommend' in user:
           events = db['event'].find({ '_id': { '$in': user['recommend'] } })
-          events = [events for _id in user['recommend']]
+          events = {event['_id']: event for event in events}
+          events = [events[_id] for _id in user['recommend']]
           return json.dumps({ 'events': list(events) }, ensure_ascii=False, default=str)
         else:
           return { 'error': 'recommend did not update' }
