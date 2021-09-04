@@ -152,13 +152,16 @@ class Device(Resource):
       return valid
 
   def patch(self):
-    self.parser.add_argument('deviceId', required=True, type=str, action='append')
+    self.parser.add_argument('deviceId', type=str, action='append', default=[])
     args = self.parser.parse_args()
     if not args['email'] or not args['password']:
       return { 'error': 'email and password can not be null' }
 
-    valid = validate(args['email'], args['password'], projection={ '_id': False, 'password': True })
+    valid = validate(args['email'], args['password'], projection={ '_id': False, 'password': True, 'device': True })
     if 'user' in valid:
+      for _id in args['deviceId']:
+        if _id not in valid['user']['device']:
+          return { 'error': 'You can only remove your own device' }
       db['user'].update_one({ 'email': args['email'] }, { '$set': { 'device': args['deviceId'] } })
       return { 'result': f'user {args["email"]} device updated' }
     else:
