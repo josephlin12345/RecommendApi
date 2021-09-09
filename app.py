@@ -111,6 +111,7 @@ class Profile(Resource):
       if args['new_password']:
         args['password'] = hashlib.sha512(args['new_password'].encode()).hexdigest()
       args['modifyDate'] = datetime.now()
+      args.pop('new_password')
 
       db['user'].update_one({ 'email': args['email'] }, { '$set': args })
       return { 'result': f'user {args["email"]} profile updated' }
