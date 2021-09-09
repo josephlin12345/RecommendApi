@@ -104,7 +104,7 @@ class Profile(Resource):
         args['birthday'] = datetime.strptime(args['birthday'], '%Y/%m/%d')
       except:
         args['birthday'] = None
-      if args['gender'] != 'F' and args['gender'] != 'M':
+      if args['gender'] != 'F' and args['gender'] != 'M' and args['gender'] != 'S':
         args['gender'] = None
       if not args['name']:
         args['name'] = None
