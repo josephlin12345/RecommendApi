@@ -108,8 +108,7 @@ class Profile(Resource):
         args['gender'] = None
       if not args['name']:
         args['name'] = None
-      if args['new_password']:
-        args['password'] = hashlib.sha512(args['new_password'].encode()).hexdigest()
+      args['password'] = hashlib.sha512(args['new_password'].encode()).hexdigest()
       args['modifyDate'] = datetime.now()
       args.pop('new_password')
 
