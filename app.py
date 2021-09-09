@@ -188,7 +188,7 @@ class Recommend(Resource):
     if args['random']:
       parser.add_argument('n', required=True, type=int)
       args = parser.parse_args()
-      if not args['n']:
+      if not args['n'] or args['n'] > 10:
         args['n'] = 10
 
       result = list(db['event'].aggregate([{ '$sample': { 'size': args['n'] } }]))
