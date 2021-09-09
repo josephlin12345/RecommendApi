@@ -89,8 +89,8 @@ class Profile(Resource):
 
   def patch(self):
     args = self.parser.parse_args()
-    if not args['email'] or not args['password'] or not args['new_password']:
-      return { 'error': 'email, password and new_password can not be null' }
+    if not args['email'] or not args['password']:
+      return { 'error': 'email and password can not be null' }
 
     valid = validate(args['email'], args['password'], projection={ '_id': False, 'password': True })
     if 'user' in valid:
@@ -108,8 +108,9 @@ class Profile(Resource):
         args['gender'] = None
       if not args['name']:
         args['name'] = None
+      if args['new_password']:
+        args['password'] = hashlib.sha512(args['new_password'].encode()).hexdigest()
       args['modifyDate'] = datetime.now()
-      args['password'] = hashlib.sha512(args['new_password'].encode()).hexdigest()
 
       db['user'].update_one({ 'email': args['email'] }, { '$set': args })
       return { 'result': f'user {args["email"]} profile updated' }
