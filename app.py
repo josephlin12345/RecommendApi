@@ -183,7 +183,7 @@ class Device(Resource):
 class Recommend(Resource):
   def get(self):
     parser = reqparse.RequestParser()
-    parser.add_argument('random', required=True, type=bool)
+    parser.add_argument('random', required=True, type=int)
     args = parser.parse_args()
 
     if args['random']:
