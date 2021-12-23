@@ -367,4 +367,4 @@ api.add_resource(History, '/api/history')
 api.add_resource(Event, '/api/event')
 
 if __name__ == '__main__':
-	app.run()
+  app.run()
