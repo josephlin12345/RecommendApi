@@ -15,7 +15,7 @@ db = client['RecommendationSystem']
 def update_recommend():
   events = list(db['event'].find(projection={ 'content.title': True }))
   events_embeddings = embed([event['content']['title'] for event in events])
-  batch_size = 100
+  batch_size = 10
   events_embeddings_batches = [events_embeddings[i * batch_size: (i + 1) * batch_size] for i in range(math.ceil(len(events_embeddings) / batch_size))]
 
   now = datetime.now()
