@@ -183,33 +183,28 @@ class Device(Resource):
 class Recommend(Resource):
   def get(self):
     parser = reqparse.RequestParser()
-    parser.add_argument('random', required=True, type=int)
+    parser.add_argument('email', required=True, type=str)
+    parser.add_argument('password', required=True, type=str)
+    parser.add_argument('offset', required=True, type=int)
+    parser.add_argument('limit', required=True, type=int)
     args = parser.parse_args()
+    if not args['email'] or not args['password']:
+      return { 'error': 'email and password can not be null' }
+    if args['limit'] > 100:
+      args['limit'] = 100
+    if args['offset'] < 0:
+      args['offset'] = 0
 
-    if args['random']:
-      parser.add_argument('n', required=True, type=int)
-      args = parser.parse_args()
-      if not args['n'] or args['n'] > 10:
-        args['n'] = 10
-
-      result = list(db['event'].aggregate([{ '$sample': { 'size': args['n'] } }]))
+    valid = validate(args['email'], args['password'], projection={ '_id': False, 'password': True, 'recommend': True })
+    if 'user' in valid:
+      user = valid['user']
+      correspond = { recommend['_id']: recommend['score'] for recommend in user['recommend'][args['offset']: args['offset'] + args['limit']] }
+      events = db['event'].find({ '_id': { '$in': list(correspond.keys()) } })
+      result = [{ 'event': event, 'score': correspond[event['_id']] } for event in events]
+      result.sort(key=lambda e: e['score'], reverse=True)
+      return json.loads(json.dumps({ 'result': result }, ensure_ascii=False, default=str))
     else:
-      parser.add_argument('email', required=True, type=str)
-      parser.add_argument('password', required=True, type=str)
-      args = parser.parse_args()
-      if not args['email'] or not args['password']:
-        return { 'error': 'email and password can not be null' }
-
-      valid = validate(args['email'], args['password'], projection={ '_id': False, 'password': True, 'recommend': True })
-      if 'user' in valid:
-        user = valid['user']
-        correspond = { recommend['_id']: recommend['score'] for recommend in user['recommend'] }
-        events = db['event'].find({ '_id': { '$in': list(correspond.keys()) } })
-        result = [{ 'event': event, 'score': correspond[event['_id']] } for event in events]
-        result.sort(key=lambda e: e['score'], reverse=True)
-      else:
-        return valid
-    return json.loads(json.dumps({ 'result': result }, ensure_ascii=False, default=str))
+      return valid
 
 class History(Resource):
   def post(self):
