@@ -62,11 +62,11 @@ class SignIn(Resource):
     if not args['email'] or not args['password']:
       return { 'error': 'email and password can not be null' }
 
-    valid = validate(args['email'], args['password'], { '_id': False, 'password': True })
-    if 'user' in valid:
+    result = validate(args['email'], args['password'], { '_id': False, 'password': True })
+    if 'user' in result:
       return { 'result': f'user {args["email"]} sign in successfully' }
     else:
-      return valid
+      return result
 
 class Profile(Resource):
   def __init__(self):
@@ -79,21 +79,21 @@ class Profile(Resource):
     if not args['email'] or not args['password']:
       return { 'error': 'email and password can not be null' }
 
-    valid = validate(args['email'], args['password'], projection={ 'device': False, 'history': False, 'recommend': False })
-    if 'user' in valid:
-      user = valid['user']
+    result = validate(args['email'], args['password'], projection={ 'device': False, 'history': False, 'recommend': False })
+    if 'user' in result:
+      user = result['user']
       user.pop('password')
       return json.loads(json.dumps({ 'result': user }, ensure_ascii=False, default=str))
     else:
-      return valid
+      return result
 
   def patch(self):
     args = self.parser.parse_args()
     if not args['email'] or not args['password']:
       return { 'error': 'email and password can not be null' }
 
-    valid = validate(args['email'], args['password'], projection={ '_id': False, 'password': True })
-    if 'user' in valid:
+    result = validate(args['email'], args['password'], projection={ '_id': False, 'password': True })
+    if 'user' in result:
       self.parser.add_argument('name', required=True, type=str)
       self.parser.add_argument('birthday', required=True, type=str)
       self.parser.add_argument('gender', required=True, type=str)
@@ -115,7 +115,7 @@ class Profile(Resource):
       db['user'].update_one({ 'email': args['email'] }, { '$set': args })
       return { 'result': f'user {args["email"]} profile updated' }
     else:
-      return valid
+      return result
 
 class Device(Resource):
   def __init__(self):
@@ -128,12 +128,12 @@ class Device(Resource):
     if not args['email'] or not args['password']:
       return { 'error': 'email and password can not be null' }
 
-    valid = validate(args['email'], args['password'], projection={ '_id': False, 'password': True })
-    if 'user' in valid:
+    result = validate(args['email'], args['password'], projection={ '_id': False, 'password': True })
+    if 'user' in result:
       user = db['user'].find_one({ 'email': args['email'] }, projection={ '_id': False, 'device': True })
       return { 'result': user }
     else:
-      return valid
+      return result
 
   def post(self):
     self.parser.add_argument('deviceId', required=True, type=str)
@@ -141,8 +141,8 @@ class Device(Resource):
     if not args['email'] or not args['password'] or not args['deviceId']:
       return { 'error': 'email, password and deviceId can not be null' }
 
-    valid = validate(args['email'], args['password'], projection={ '_id': False, 'password': True })
-    if 'user' in valid:
+    result = validate(args['email'], args['password'], projection={ '_id': False, 'password': True })
+    if 'user' in result:
       user = db['user'].find_one({ 'device': args['deviceId'] }, projection={})
       if not user:
         db['user'].update_one({ 'email': args['email'] }, { '$push': { 'device': args['deviceId'] } })
@@ -150,7 +150,7 @@ class Device(Resource):
       else:
         return { 'error': f'device {args["deviceId"]} has been registered' }
     else:
-      return valid
+      return result
 
   def patch(self):
     self.parser.add_argument('deviceId', type=str, action='append', default=[])
@@ -158,27 +158,27 @@ class Device(Resource):
     if not args['email'] or not args['password']:
       return { 'error': 'email and password can not be null' }
 
-    valid = validate(args['email'], args['password'], projection={ '_id': False, 'password': True, 'device': True })
-    if 'user' in valid:
+    result = validate(args['email'], args['password'], projection={ '_id': False, 'password': True, 'device': True })
+    if 'user' in result:
       for _id in args['deviceId']:
-        if _id not in valid['user']['device']:
+        if _id not in result['user']['device']:
           return { 'error': 'You can only remove your own device' }
       db['user'].update_one({ 'email': args['email'] }, { '$set': { 'device': args['deviceId'] } })
       return { 'result': f'user {args["email"]} device updated' }
     else:
-      return valid
+      return result
 
   def delete(self):
     args = self.parser.parse_args()
     if not args['email'] or not args['password']:
       return { 'error': 'email and password can not be null' }
 
-    valid = validate(args['email'], args['password'], projection={ '_id': False, 'password': True })
-    if 'user' in valid:
+    result = validate(args['email'], args['password'], projection={ '_id': False, 'password': True })
+    if 'user' in result:
       db['user'].update_one({ 'email': args['email'] }, { '$set': { 'device': [] } })
       return { 'result': f'user {args["email"]} device reset' }
     else:
-      return valid
+      return result
 
 class Recommend(Resource):
   def get(self):
@@ -195,16 +195,16 @@ class Recommend(Resource):
     if args['offset'] < 0:
       args['offset'] = 0
 
-    valid = validate(args['email'], args['password'], projection={ '_id': False, 'password': True, 'recommend': True })
-    if 'user' in valid:
-      user = valid['user']
+    result = validate(args['email'], args['password'], projection={ '_id': False, 'password': True, 'recommend': True })
+    if 'user' in result:
+      user = result['user']
       correspond = { recommend['_id']: recommend['score'] for recommend in user['recommend'][args['offset']: args['offset'] + args['limit']] }
       events = db['event'].find({ '_id': { '$in': list(correspond.keys()) } })
       result = [{ 'event': event, 'score': correspond[event['_id']] } for event in events]
       result.sort(key=lambda e: e['score'], reverse=True)
       return json.loads(json.dumps({ 'result': result }, ensure_ascii=False, default=str))
     else:
-      return valid
+      return result
 
 class History(Resource):
   def post(self):
@@ -283,8 +283,8 @@ class Event(Resource):
     if not args['email'] or not args['password'] or not args['content']['title']:
       return { 'error': 'email, password and content.title can not be null' }
 
-    valid = validate(args['email'], args['password'], projection={ '_id': False, 'password': True })
-    if 'user' in valid:
+    result = validate(args['email'], args['password'], projection={ '_id': False, 'password': True })
+    if 'user' in result:
       args['establisher'] = args.pop('email')
       args.pop('password')
       args.pop('unparsed_arguments')
@@ -300,7 +300,7 @@ class Event(Resource):
       db['event'].insert_one(args)
       return { 'result': f'event {args["content"]["title"]} inserted' }
     else:
-      return valid
+      return result
 
   def patch(self):
     self.parser.add_argument('_id', required=True, type=ObjectId)
@@ -310,8 +310,8 @@ class Event(Resource):
     if not args['email'] or not args['password'] or not args['content']['title']:
       return { 'error': 'email, password and content.title can not be null' }
 
-    valid = validate(args['email'], args['password'], projection={ '_id': False, 'password': True })
-    if 'user' in valid:
+    result = validate(args['email'], args['password'], projection={ '_id': False, 'password': True })
+    if 'user' in result:
       event = db['event'].find_one(args['_id'])
       if event:
         if event['establisher'] == args['email']:
@@ -328,7 +328,7 @@ class Event(Resource):
       else:
         return { 'error': f'event {args["_id"]} does not exist' }
     else:
-      return valid
+      return result
 
   def delete(self):
     parser = reqparse.RequestParser()
@@ -339,8 +339,8 @@ class Event(Resource):
     if not args['email'] or not args['password']:
       return { 'error': 'email and password can not be null' }
 
-    valid = validate(args['email'], args['password'], projection={ '_id': False, 'password': True })
-    if 'user' in valid:
+    result = validate(args['email'], args['password'], projection={ '_id': False, 'password': True })
+    if 'user' in result:
       event = db['event'].find_one(args['_id'])
       if event:
         if event['establisher'] == args['email']:
@@ -351,7 +351,7 @@ class Event(Resource):
       else:
         return { 'error': f'event id {args["_id"]} does not exist' }
     else:
-      return valid
+      return result
 
 api.add_resource(SignUp, '/api/sign_up')
 api.add_resource(SignIn, '/api/sign_in')
