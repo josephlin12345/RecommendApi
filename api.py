@@ -210,28 +210,33 @@ class History(Resource):
   def post(self):
     parser = reqparse.RequestParser()
     parser.add_argument('email', type=str)
+    parser.add_argument('password', type=str)
     parser.add_argument('deviceId', type=str)
     parser.add_argument('title', required=True, type=str)
     args = parser.parse_args()
-    if (not args['email'] and not args['deviceId']) or not args['title']:
-      return { 'error': 'email/deviceId and title can not be null' }
+    if ((not args['email'] or not args['password']) and not args['deviceId']) or not args['title']:
+      return { 'error': '(email + password)/deviceId and title can not be null' }
 
-    now = datetime.now()
-    today = now.strftime('%Y-%m-%d')
-    data = {
-      'title': args['title'],
-      'timestamp': now
-    }
-    if args['email']:
-      query = { 'email': args['email'] }
-    elif args['deviceId']:
-      query = { 'device': args['deviceId'] }
+    result = validate(args['email'], args['password'], projection={ '_id': False, 'password': True })
+    if 'user' in result:
+      now = datetime.now()
+      today = now.strftime('%Y-%m-%d')
+      data = {
+        'title': args['title'],
+        'timestamp': now
+      }
+      if args['email']:
+        query = { 'email': args['email'] }
+      elif args['deviceId']:
+        query = { 'device': args['deviceId'] }
 
-    result = db['user'].update_one(query, { '$push': { f'history.{today}': data } })
-    if result.matched_count:
-      return { 'result': f'device/email {args["deviceId"]}/{args["email"]} updated' }
+      result = db['user'].update_one(query, { '$push': { f'history.{today}': data } })
+      if result.matched_count:
+        return { 'result': f'device/email {args["deviceId"]}/{args["email"]} updated' }
+      else:
+        return { 'error': f'device/email {args["deviceId"]}/{args["email"]} does not exist' }
     else:
-      return { 'error': f'device/email {args["deviceId"]}/{args["email"]} does not exist' }
+      return result
 
 class Event(Resource):
   def __init__(self):
