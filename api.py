@@ -94,25 +94,28 @@ class Profile(Resource):
 
     result = validate(args['email'], args['password'], projection={ '_id': False, 'password': True })
     if 'user' in result:
-      self.parser.add_argument('name', required=True, type=str)
-      self.parser.add_argument('birthday', required=True, type=str)
-      self.parser.add_argument('gender', required=True, type=str)
-      self.parser.add_argument('new_password', required=True, type=str)
+      self.parser.add_argument('name', type=str)
+      self.parser.add_argument('birthday', type=str)
+      self.parser.add_argument('gender', type=str)
+      self.parser.add_argument('new_password', type=str)
       args = self.parser.parse_args()
 
-      try:
-        args['birthday'] = datetime.strptime(args['birthday'], '%Y/%m/%d')
-      except:
-        args['birthday'] = None
-      if args['gender'] != 'F' and args['gender'] != 'M' and args['gender'] != 'S':
-        args['gender'] = None
-      if not args['name']:
-        args['name'] = None
-      args['password'] = hashlib.sha512(args['new_password'].encode()).hexdigest()
-      args['modifyDate'] = datetime.now()
-      args.pop('new_password')
+      profile = {}
+      if args.get('birthday', None):
+        try:
+          profile['birthday'] = datetime.strptime(args['birthday'], '%Y/%m/%d')
+        except:
+          profile['birthday'] = None
+      if args.get('gender', None):
+        valid_gender = ('F', 'M', 'S')
+        profile['gender'] = args['gender'] if args['gender'] in valid_gender else None
+      if args.get('name', None):
+        profile['name'] = args['name']
+      if args.get('new_password', None):
+        profile['password'] = hashlib.sha512(args['new_password'].encode()).hexdigest()
+      profile['modifyDate'] = datetime.now()
 
-      db['user'].update_one({ 'email': args['email'] }, { '$set': args })
+      db['user'].update_one({ 'email': args['email'] }, { '$set': profile })
       return { 'result': f'user {args["email"]} profile updated' }
     else:
       return result
