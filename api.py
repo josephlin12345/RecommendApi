@@ -6,7 +6,7 @@ from bson.objectid import ObjectId
 from flask import Flask
 from flask_cors import CORS
 from flask_restful import Api, Resource, reqparse
-from pymongo import MongoClient
+from pymongo import MongoClient, TEXT
 
 app = Flask(__name__)
 cors = CORS(app)
@@ -14,6 +14,7 @@ api = Api(app)
 
 client = MongoClient('mongodb+srv://api:gPdCEpVRVWuOnGqp@cluster0.xgkp9.mongodb.net/?ssl=true&ssl_cert_reqs=CERT_NONE&retryWrites=true&w=majority')
 db = client['RecommendationSystem']
+db['event'].create_index([('content.title', TEXT)])
 
 def validate(email, password, projection):
   user = db['user'].find_one({ 'email': email }, projection=projection)
