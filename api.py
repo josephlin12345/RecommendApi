@@ -193,10 +193,12 @@ class Recommend(Resource):
     args = parser.parse_args()
     if not args['email'] or not args['password']:
       return { 'error': 'email and password can not be null' }
-    if args['limit'] > 100:
-      args['limit'] = 100
     if args['offset'] < 0:
       args['offset'] = 0
+    if args['limit'] > 100:
+      args['limit'] = 100
+    elif args['limit'] < 1:
+      args['limit'] = 1
 
     result = validate(args['email'], args['password'], projection={ '_id': False, 'password': True, 'recommend': True })
     if 'user' in result:
@@ -259,21 +261,30 @@ class Event(Resource):
     if args['type'] == 'all' or args['type'] == 'user':
       parser.add_argument('offset', required=True, type=int)
       parser.add_argument('limit', required=True, type=int)
-      parser.add_argument('sort', required=True, type=str)
-      parser.add_argument('order', required=True, type=int)
+      parser.add_argument('sort', type=str)
+      parser.add_argument('order', type=int)
+      parser.add_argument('q', type=str)
       if args['type'] == 'user':
         parser.add_argument('email', required=True, type=str)
       args = parser.parse_args()
+
+      if args['offset'] < 0:
+        args['offset'] = 0
       if args['limit'] > 100:
         args['limit'] = 100
       elif args['limit'] < 1:
         args['limit'] = 1
-      if args['order'] != 1 and args['order'] != -1:
+      if not args.get('sort', None):
+        args['sort'] = '_id'
+      if not args.get('order', None) or (args['order'] != 1 and args['order'] != -1):
         args['order'] = 1
-      if args['offset'] < 0:
-        args['offset'] = 0
 
-      query = None if args['type'] == 'all' else { 'establisher': args['email'] }
+      query = {}
+      if args.get('q', None):
+        query['$text'] = { '$search': args['q'] }
+      if args['type'] == 'user':
+        query['establisher'] = args['email']
+
       result = list(db['event'].find(query).sort(args['sort'], args['order']).skip(args['offset']).limit(args['limit']))
     elif args['type'] == 'single':
       parser.add_argument('_id', required=True, type=ObjectId)
