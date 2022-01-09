@@ -281,7 +281,7 @@ class Event(Resource):
 
       query = {}
       if args.get('q', None):
-        query['$text'] = { '$search': args['q'], '$index': 'default' }
+        query['$text'] = { '$search': args['q'] }
       if args['type'] == 'user':
         query['establisher'] = args['email']
 
