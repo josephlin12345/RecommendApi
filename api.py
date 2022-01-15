@@ -97,7 +97,7 @@ class Profile(Resource):
       self.parser.add_argument('name', type=str)
       self.parser.add_argument('birthday', type=str)
       self.parser.add_argument('gender', type=str)
-      self.parser.add_argument('new_password', type=str)
+      self.parser.add_argument('new_password', type=str, nullable=False)
       args = self.parser.parse_args()
 
       profile = {}
