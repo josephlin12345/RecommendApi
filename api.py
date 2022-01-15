@@ -120,6 +120,24 @@ class Profile(Resource):
     else:
       return result
 
+class Password(Resource):
+  def patch(self):
+    parser = reqparse.RequestParser()
+    parser.add_argument('email', required=True, type=str)
+    parser.add_argument('password', required=True, type=str)
+    parser.add_argument('new_password', required=True, type=str)
+    args = parser.parse_args()
+    if not args['email'] or not args['password'] or not args['new_password']:
+      return { 'error': 'email, password and new_password can not be null' }
+
+    result = validate(args['email'], args['password'], projection={ '_id': False, 'password': True })
+    if 'user' in result:
+      password = hashlib.sha512(args['new_password'].encode()).hexdigest()
+      db['user'].update_one({ 'email': args['email'] }, { '$set': { 'password': password } })
+      return { 'result': f'user {args["email"]} password changed' }
+    else:
+      return result
+
 class Device(Resource):
   def __init__(self):
     self.parser = reqparse.RequestParser()
@@ -375,6 +393,7 @@ class Event(Resource):
 api.add_resource(SignUp, '/api/sign_up')
 api.add_resource(SignIn, '/api/sign_in')
 api.add_resource(Profile, '/api/profile')
+api.add_resource(Password, '/api/password')
 api.add_resource(Device, '/api/device')
 api.add_resource(Recommend, '/api/recommend')
 api.add_resource(History, '/api/history')
