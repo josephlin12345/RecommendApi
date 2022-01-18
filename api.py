@@ -269,7 +269,8 @@ class Event(Resource):
     self.parser.add_argument('content', required=True, type=dict)
     self.content_parser = reqparse.RequestParser()
     self.content_parser.add_argument('title', required=True, type=str, location='content')
-    self.content_parser.add_argument('date', required=True, type=dict, location='content')
+    self.content_parser.add_argument('image', required=True, type=str, location='content')
+    self.content_parser.add_argument('date', type=dict, location='content')
 
   def get(self):
     parser = reqparse.RequestParser()
@@ -317,8 +318,8 @@ class Event(Resource):
     args = self.parser.parse_args()
     content_args = self.content_parser.parse_args(req=args)
     args['content'].update(content_args)
-    if not args['email'] or not args['password'] or not args['content']['title']:
-      return { 'error': 'email, password and content.title can not be null' }
+    if not args['email'] or not args['password'] or not args['content']['title'] or not args['content']['image']:
+      return { 'error': 'email, password, content.title and content.image can not be null' }
 
     result = validate(args['email'], args['password'], projection={ '_id': False, 'password': True })
     if 'user' in result:
@@ -328,11 +329,12 @@ class Event(Resource):
       now = datetime.now()
       args['modifyDate'] = now
       args['createDate'] = now
-      for k, v in args['content'].pop('date').items():
-        try:
-          args['content'][k] = datetime.strptime(v, '%Y-%m-%dT%H:%M:00.000Z')
-        except:
-          pass
+      if args['content'].get('date', None):
+        for k, v in args['content'].pop('date').items():
+          try:
+            args['content'][k] = datetime.strptime(v, '%Y-%m-%dT%H:%M:00.000Z')
+          except:
+            pass
 
       db['event'].insert_one(args)
       return { 'result': f'event {args["content"]["title"]} inserted' }
@@ -344,19 +346,20 @@ class Event(Resource):
     args = self.parser.parse_args()
     content_args = self.content_parser.parse_args(req=args)
     args['content'].update(content_args)
-    if not args['email'] or not args['password'] or not args['content']['title']:
-      return { 'error': 'email, password and content.title can not be null' }
+    if not args['email'] or not args['password'] or not args['content']['title'] or not args['content']['image']:
+      return { 'error': 'email, password, content.title and content.image can not be null' }
 
     result = validate(args['email'], args['password'], projection={ '_id': False, 'password': True })
     if 'user' in result:
       event = db['event'].find_one(args['_id'])
       if event:
         if event['establisher'] == args['email']:
-          for k, v in args['content'].pop('date').items():
-            try:
-              args['content'][k] = datetime.strptime(v, '%Y-%m-%dT%H:%M:00.000Z')
-            except:
-              pass
+          if args['content'].get('date', None):
+            for k, v in args['content'].pop('date').items():
+              try:
+                args['content'][k] = datetime.strptime(v, '%Y-%m-%dT%H:%M:00.000Z')
+              except:
+                pass
 
           db['event'].update_one({ '_id': args['_id'] }, { '$set': { 'content': args['content'], 'modifyDate': datetime.now() } })
           return { 'result': f'event {args["content"]["title"]} updated' }
