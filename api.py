@@ -277,16 +277,21 @@ class Event(Resource):
 
   def get(self):
     parser = reqparse.RequestParser()
-    parser.add_argument('type', required=True, type=str)
+    parser.add_argument('type', type=str)
     args = parser.parse_args()
 
-    if args['type'] == 'all' or args['type'] == 'user':
+    if args.get('type', None) == 'single':
+      parser.add_argument('_id', required=True, type=ObjectId)
+      args = parser.parse_args()
+
+      result = db['event'].find_one(args['_id'])
+    else:
       parser.add_argument('offset', required=True, type=int)
       parser.add_argument('limit', required=True, type=int)
       parser.add_argument('sort', type=str)
       parser.add_argument('order', type=int)
       parser.add_argument('q', type=str)
-      if args['type'] == 'user':
+      if args.get('type', None) == 'user':
         parser.add_argument('email', required=True, type=str)
       args = parser.parse_args()
 
@@ -304,15 +309,10 @@ class Event(Resource):
       query = {}
       if args.get('q', None):
         query['$text'] = { '$search': args['q'], '$language': 'none' }
-      if args['type'] == 'user':
+      if args.get('type', None) == 'user':
         query['establisher'] = args['email']
 
       result = list(db['event'].find(query).sort(args['sort'], args['order']).skip(args['offset']).limit(args['limit']))
-    elif args['type'] == 'single':
-      parser.add_argument('_id', required=True, type=ObjectId)
-      args = parser.parse_args()
-
-      result = db['event'].find_one(args['_id'])
     else:
       return { 'error': f'unknown type {args["type"]}' }
     return json.loads(json.dumps({ 'result': result }, ensure_ascii=False, default=str))
