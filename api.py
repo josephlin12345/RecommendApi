@@ -313,8 +313,6 @@ class Event(Resource):
         query['establisher'] = args['email']
 
       result = list(db['event'].find(query).sort(args['sort'], args['order']).skip(args['offset']).limit(args['limit']))
-    else:
-      return { 'error': f'unknown type {args["type"]}' }
     return json.loads(json.dumps({ 'result': result }, ensure_ascii=False, default=str))
 
   def post(self):
