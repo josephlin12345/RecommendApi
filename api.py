@@ -270,6 +270,8 @@ class Event(Resource):
     self.content_parser = reqparse.RequestParser()
     self.content_parser.add_argument('title', required=True, type=str, location='content')
     self.content_parser.add_argument('image', required=True, type=str, location='content')
+    self.content_parser.add_argument('detail', required=True, type=str, location='content')
+    self.content_parser.add_argument('organizer', required=True, type=str, location='content')
     self.content_parser.add_argument('date', type=dict, location='content')
 
   def get(self):
