@@ -272,6 +272,7 @@ class Event(Resource):
     self.content_parser.add_argument('image', required=True, type=str, location='content')
     self.content_parser.add_argument('detail', required=True, type=str, location='content')
     self.content_parser.add_argument('organizer', required=True, type=str, location='content')
+    self.content_parser.add_argument('url', required=True, type=str, location='content')
     self.content_parser.add_argument('date', type=dict, location='content')
 
   def get(self):
@@ -320,8 +321,8 @@ class Event(Resource):
     args = self.parser.parse_args()
     content_args = self.content_parser.parse_args(req=args)
     args['content'].update(content_args)
-    if not args['email'] or not args['password'] or not args['content']['title'] or not args['content']['image']:
-      return { 'error': 'email, password, content.title and content.image can not be null' }
+    if not args['email'] or not args['password'] or not args['content']['title']:
+      return { 'error': 'email, password and content.title can not be null' }
 
     result = validate(args['email'], args['password'], projection={ '_id': False, 'password': True })
     if 'user' in result:
@@ -348,8 +349,8 @@ class Event(Resource):
     args = self.parser.parse_args()
     content_args = self.content_parser.parse_args(req=args)
     args['content'].update(content_args)
-    if not args['email'] or not args['password'] or not args['content']['title'] or not args['content']['image']:
-      return { 'error': 'email, password, content.title and content.image can not be null' }
+    if not args['email'] or not args['password'] or not args['content']['title']:
+      return { 'error': 'email, password and content.title can not be null' }
 
     result = validate(args['email'], args['password'], projection={ '_id': False, 'password': True })
     if 'user' in result:
