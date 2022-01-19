@@ -322,9 +322,9 @@ class Event(Resource):
     if not args['email'] or not args['password'] or not args['content']['title']:
       return { 'error': 'email, password and content.title can not be null' }
     if not args['content']['url'].startswith('http://') and not args['content']['url'].startswith('https://'):
-      return { 'error': 'content.url nust start with http:// or https://' }
+      return { 'error': 'content.url must start with http:// or https://' }
     if not args['content']['image'].startswith('http://') and not args['content']['image'].startswith('https://'):
-      return { 'error': 'content.image nust start with http:// or https://' }
+      return { 'error': 'content.image must start with http:// or https://' }
 
     result = validate(args['email'], args['password'], projection={ '_id': False, 'password': True })
     if 'user' in result:
@@ -354,9 +354,9 @@ class Event(Resource):
     if not args['email'] or not args['password'] or not args['content']['title']:
       return { 'error': 'email, password and content.title can not be null' }
     if not args['content']['url'].startswith('http://') and not args['content']['url'].startswith('https://'):
-      return { 'error': 'content.url nust start with http:// or https://' }
+      return { 'error': 'content.url must start with http:// or https://' }
     if not args['content']['image'].startswith('http://') and not args['content']['image'].startswith('https://'):
-      return { 'error': 'content.image nust start with http:// or https://' }
+      return { 'error': 'content.image must start with http:// or https://' }
 
     result = validate(args['email'], args['password'], projection={ '_id': False, 'password': True })
     if 'user' in result:
