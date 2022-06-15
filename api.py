@@ -47,7 +47,7 @@ class SignUp(Resource):
         'createDate': now,
         'device': [],
         'history': {},
-        'recommend': []
+        'recommend': [list(db['event'].aggregate([{ '$sample': { 'size': 10 }}, { '$project': { '_id': True } }]))]
       })
       return { 'result': f'user {args["email"]} sign up successfully' }
     else:
